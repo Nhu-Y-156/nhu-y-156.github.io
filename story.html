@@ -127,6 +127,8 @@ canvas{display:none}
   var store={get:function(k){try{return JSON.parse(localStorage.getItem('story:'+k)||'null');}catch(e){return null;}},
              set:function(k,v){try{localStorage.setItem('story:'+k,JSON.stringify(v));}catch(e){}}};
 
+  /* gộp dấu tiếng Việt gõ kiểu "tổ hợp" (dấu rời) thành chữ liền để không bị vỡ dấu khi vẽ */
+  function nfc(s){s=String(s==null?'':s);try{return s.normalize('NFC');}catch(e){return s;}}
   function toast(t){var el=$('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(function(){el.classList.remove('show');},2600);}
   function fmt(ms){if(!ms)return'';var d=new Date(ms);return d.getDate()+'/'+(d.getMonth()+1)+' '+('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
 
@@ -140,7 +142,7 @@ canvas{display:none}
     $('list').innerHTML='<div class="empty">Đang tải lời chúc…</div>';
     fetch(API+'?api=wishes&k='+encodeURIComponent(KEY),{credentials:'omit'}).then(function(r){return r.json();}).then(function(j){
       if(!j.ok)throw new Error(j.error||'');
-      wishes=j.wishes||[];render();
+      wishes=(j.wishes||[]).map(function(w){w.wish=nfc(w.wish);w.name=nfc(w.name);return w;});render();
     }).catch(function(){render('Chưa tải được lời chúc. Ý kiểm tra mạng rồi bấm "Tải lại" nha.');});
   }
   function render(err){
@@ -228,15 +230,17 @@ canvas{display:none}
     x.clearRect(0,0,W,H);background(t);
     x.textAlign='center';x.textBaseline='alphabetic';
     /* đo trước mọi phần để căn cả khối vào giữa vùng an toàn của story (chừa thanh tên phía trên, đồng cỏ phía dưới) */
-    var wish=($('wish').value||'').trim()||'Lời chúc sẽ hiện ở đây';
+    var wish=nfc($('wish').value||'').trim()||'Lời chúc sẽ hiện ở đây';
     var scale=$('size').value/100,size=Math.round(84*scale),pad=72,cw=W-150,maxW=cw-pad*2,ls,lh;
-    do{ls=wrap(wish,'600 '+size+'px '+SERIF,maxW);lh=size*1.38;if(ls.length*lh<=760&&(ls.length<=3||size<=Math.round(64*scale)))break;size-=2;}while(size>30);
-    var name=($('from').value||'').trim()||'Ẩn danh';
-    var ch=pad+ls.length*lh+(cur&&cur.own?pad*.6:150),cx=(W-cw)/2;
-    var rep0=($('reply').value||'').trim(),rs0=78,rl0=[];
-    if(rep0){do{rl0=wrap(rep0,'400 '+rs0+'px '+SCRIPT,W-170);if(rl0.length*rs0*1.15<=420)break;rs0-=3;}while(rs0>40);}
-    var dateH=$('showDate').checked?60:0,totalH=dateH+110+70+ch+150+rl0.length*rs0*1.15+60;
-    var safeTop=300,safeBot=H*.79,top=safeTop+Math.max(0,(safeBot-safeTop-totalH)/2);
+    var rep0=nfc($('reply').value||'').trim(),rs0=78,rl0=[];
+    if(rep0){do{rl0=wrap(rep0,'400 '+rs0+'px '+SCRIPT,W-170);if(rl0.length*rs0*1.15<=300)break;rs0-=3;}while(rs0>40);}
+    var dateH=$('showDate').checked?60:0,safeTop=300,safeBot=H*.8,foot=(cur&&cur.own?pad*.6:150);
+    var room=Math.min(760,(safeBot-safeTop)-(dateH+110+70+pad+foot+150+rl0.length*rs0*1.15+60));
+    do{ls=wrap(wish,'600 '+size+'px '+SERIF,maxW);lh=size*1.38;if(ls.length*lh<=room&&(ls.length<=3||size<=Math.round(64*scale)))break;size-=2;}while(size>26);
+    var name=nfc($('from').value||'').trim()||'Ẩn danh';
+    var ch=pad+ls.length*lh+foot,cx=(W-cw)/2;
+    var totalH=dateH+110+70+ch+150+rl0.length*rs0*1.15+60;
+    var top=safeTop+Math.max(0,(safeBot-safeTop-totalH)/2);
     if($('showDate').checked){x.fillStyle=t.soft;x.font='700 30px '+BODY;try{x.letterSpacing='7px';}catch(e){}x.fillText('LỄ TỐT NGHIỆP · 22.11.2026',W/2,top+30);try{x.letterSpacing='0px';}catch(e){}}
     x.fillStyle=t.txt;x.font='400 84px '+SCRIPT;x.fillText(cur&&cur.own?'Gửi mọi người':'Gửi Như Ý',W/2,top+dateH+84);
     var cy=top+dateH+110+70;
