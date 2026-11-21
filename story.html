@@ -92,6 +92,15 @@ canvas{display:none}
   <section id="editView" hidden>
     <div class="pv"><img id="out" alt="Ảnh story xem trước"><small>Xem trước · khổ story 1080×1920</small></div>
     <div class="card">
+      <div class="f" id="frameHead" hidden><span>Dòng chữ trên cùng</span>
+        <div class="row" role="radiogroup" aria-label="Dòng chữ trên cùng">
+          <label class="chip"><input type="radio" name="head" value="Gửi Như Ý" checked>Gửi Như Ý</label>
+          <label class="chip"><input type="radio" name="head" value="Gửi mọi người">Gửi mọi người</label>
+          <label class="chip"><input type="radio" name="head" value="Cảm ơn bạn">Cảm ơn bạn</label>
+          <label class="chip"><input type="radio" name="head" value="">Không có</label>
+        </div>
+        <p class="hint">Lưu ảnh khung rồi mở Instagram/Facebook, dùng công cụ chữ (Aa) để gõ lên tờ giấy nha.</p>
+      </div>
       <label class="f"><span>Lời chúc</span><textarea id="wish" placeholder="Lời chúc sẽ hiện trên ảnh"></textarea></label>
       <label class="f"><span>Người gửi</span><input type="text" id="from" maxlength="40" placeholder="Để trống thì ghi là Ẩn danh"></label>
       <label class="f"><span>Lời cảm ơn của Ý</span><textarea id="reply" placeholder="Ví dụ: Cảm ơn bạn nhiều lắm, thương ghê á!" style="min-height:80px"></textarea></label>
@@ -148,7 +157,11 @@ canvas{display:none}
   function render(err){
     var L=$('list');L.innerHTML='';
     var blank=document.createElement('button');blank.type='button';blank.className='item blank';blank.textContent='+ Tạo story tự viết (không lấy từ lời chúc)';
-    blank.onclick=function(){open({row:'tu-viet',wish:'',name:'Như Ý',consent:'Có',posted:false,own:true});};L.appendChild(blank);
+    blank.onclick=function(){open({row:'tu-viet',wish:'',name:'Như Ý',consent:'Có',posted:false,own:true});};
+    var frame=document.createElement('button');frame.type='button';frame.className='item blank';frame.style.borderColor='#d99f22';frame.style.color='#2f4a68';
+    frame.textContent='🖼 Lấy khung trống để tự chèn chữ';
+    frame.onclick=function(){open({row:'khung',wish:'',name:'',consent:'Có',posted:false,own:true,frame:true});};
+    L.appendChild(frame);L.appendChild(blank);
     if(err){var er=document.createElement('div');er.className='empty';er.textContent=err;L.appendChild(er);return;}
     var shown=wishes.filter(function(w){return filter==='all'||(filter==='done'?w.posted:!w.posted);});
     if(!shown.length){var e=document.createElement('div');e.className='empty';e.textContent=filter==='done'?'Chưa có lời chúc nào được đánh dấu đã đăng.':'Chưa có lời chúc mới. Khi mọi người gửi, bấm "Tải lại" là thấy.';L.appendChild(e);return;}
@@ -176,7 +189,9 @@ canvas{display:none}
     $('size').value=s.size||100;$('showDate').checked=s.showDate!==false;
     var th=s.theme||'sunrise';document.querySelectorAll('input[name=theme]').forEach(function(r){r.checked=r.value===th;});
     $('listView').hidden=true;$('editView').hidden=false;$('bar').hidden=false;$('back').hidden=false;$('reload').hidden=true;
-    $('title').textContent=w.own?'Story tự viết':'Lời chúc của '+(w.name||'Ẩn danh');
+    $('title').textContent=w.frame?'Khung trống':w.own?'Story tự viết':'Lời chúc của '+(w.name||'Ẩn danh');
+    ['wish','from','reply','size'].forEach(function(id){$(id).closest('.f').hidden=!!w.frame;});
+    $('frameHead').hidden=!w.frame;
     document.body.classList.add('editing');$('mark').hidden=!!w.own;markBtn();window.scrollTo(0,0);draw();
     if(w.consent!=='Có'&&!w.own)toast('Người này chưa chọn có cho đăng hay không, Ý cân nhắc nha.');
   }
@@ -187,7 +202,7 @@ canvas{display:none}
   var tm=0;function soon(){save();clearTimeout(tm);tm=setTimeout(draw,40);}
   F.forEach(function(id){$(id).addEventListener('input',soon);});
   $('showDate').addEventListener('change',soon);
-  document.querySelectorAll('input[name=theme]').forEach(function(r){r.addEventListener('change',soon);});
+  document.querySelectorAll('input[name=theme],input[name=head]').forEach(function(r){r.addEventListener('change',soon);});
 
   /* ---------- vẽ ảnh story ---------- */
   var W=1080,H=1920,c=$('c'),x=c.getContext('2d');
@@ -238,11 +253,14 @@ canvas{display:none}
     var room=Math.min(760,(safeBot-safeTop)-(dateH+110+70+pad+foot+150+rl0.length*rs0*1.15+60));
     do{ls=wrap(wish,'600 '+size+'px '+SERIF,maxW);lh=size*1.38;if(ls.length*lh<=room&&(ls.length<=3||size<=Math.round(64*scale)))break;size-=2;}while(size>26);
     var name=nfc($('from').value||'').trim()||'Ẩn danh';
+    var FR=!!(cur&&cur.frame);
+    if(FR){rep0='';rl0=[];size=62;lh=size*1.38;ls=new Array(9).fill('');}   /* khung trống: tờ giấy 9 dòng kẻ */
     var ch=pad+ls.length*lh+foot,cx=(W-cw)/2;
     var totalH=dateH+110+70+ch+150+rl0.length*rs0*1.15+60;
     var top=safeTop+Math.max(0,(safeBot-safeTop-totalH)/2);
     if($('showDate').checked){x.fillStyle=t.soft;x.font='700 30px '+BODY;try{x.letterSpacing='7px';}catch(e){}x.fillText('LỄ TỐT NGHIỆP · 22.11.2026',W/2,top+30);try{x.letterSpacing='0px';}catch(e){}}
-    x.fillStyle=t.txt;x.font='400 84px '+SCRIPT;x.fillText(cur&&cur.own?'Gửi mọi người':'Gửi Như Ý',W/2,top+dateH+84);
+    var head=FR?(document.querySelector('input[name=head]:checked')||{}).value:(cur&&cur.own?'Gửi mọi người':'Gửi Như Ý');
+    x.fillStyle=t.txt;x.font='400 84px '+SCRIPT;if(head)x.fillText(head,W/2,top+dateH+84);
     var cy=top+dateH+110+70;
     x.save();x.translate(W/2,cy+ch/2);x.rotate(-0.012);x.translate(-W/2,-(cy+ch/2));
     x.save();x.shadowColor='rgba(47,74,104,.32)';x.shadowBlur=60;x.shadowOffsetY=26;rr(cx,cy,cw,ch,34);x.fillStyle='#fffaf1';x.fill();x.restore();
@@ -250,7 +268,7 @@ canvas{display:none}
     x.fillStyle='rgba(242,200,75,.75)';x.save();x.translate(W/2,cy-6);x.rotate(-.05);x.fillRect(-110,-24,220,48);x.restore();
     x.fillStyle='#2f4a68';x.font='600 '+size+'px '+SERIF;x.textAlign='left';
     var y=cy+pad+size*.85;ls.forEach(function(l){x.fillText(l,cx+pad,y);y+=lh;});
-    if(!(cur&&cur.own)){x.textAlign='right';x.fillStyle='#d99f22';x.font='400 64px '+SCRIPT;x.fillText('— '+name,cx+cw-pad,cy+ch-pad*.7);}
+    if(!(cur&&cur.own)&&!FR){x.textAlign='right';x.fillStyle='#d99f22';x.font='400 64px '+SCRIPT;x.fillText('— '+name,cx+cw-pad,cy+ch-pad*.7);}
     x.restore();
 
     /* lời cảm ơn của Ý */
